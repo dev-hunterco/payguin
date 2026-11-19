@@ -1,0 +1,163 @@
+CREATE TABLE IF NOT EXISTS accounts (
+  id TEXT PRIMARY KEY,
+  api_key TEXT UNIQUE NOT NULL,
+  name TEXT DEFAULT 'Conta Teste',
+  email TEXT,
+  cpf_cnpj TEXT,
+  company_type TEXT,
+  phone TEXT,
+  mobile_phone TEXT,
+  address TEXT,
+  address_number TEXT,
+  province TEXT,
+  complement TEXT,
+  postal_code TEXT,
+  city_name TEXT,
+  state TEXT,
+  country TEXT DEFAULT 'Brasil',
+  wallet_balance INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS customers (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  name TEXT NOT NULL,
+  cpf_cnpj TEXT,
+  email TEXT,
+  phone TEXT,
+  mobile_phone TEXT,
+  address TEXT,
+  address_number TEXT,
+  province TEXT,
+  complement TEXT,
+  postal_code TEXT,
+  city_name TEXT,
+  state TEXT,
+  country TEXT DEFAULT 'Brasil',
+  person_type TEXT,
+  additional_emails TEXT,
+  external_reference TEXT,
+  notification_disabled INTEGER DEFAULT 0,
+  observations TEXT,
+  group_name TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS payments (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  customer_id TEXT NOT NULL REFERENCES customers(id),
+  date_created TEXT DEFAULT (datetime('now')),
+  billing_type TEXT NOT NULL,
+  status TEXT DEFAULT 'PENDING',
+  value INTEGER NOT NULL,
+  net_value INTEGER,
+  original_value INTEGER,
+  due_date TEXT NOT NULL,
+  description TEXT,
+  external_reference TEXT,
+  installment_id TEXT,
+  installment_number INTEGER,
+  installment_count INTEGER,
+  discount_value INTEGER DEFAULT 0,
+  discount_due_date_limit_days INTEGER,
+  discount_type TEXT,
+  interest_value INTEGER DEFAULT 0,
+  fine_value INTEGER DEFAULT 0,
+  splits TEXT,
+  invoice_url TEXT,
+  bank_slip_url TEXT,
+  invoice_number TEXT,
+  pix_qr_code_id TEXT,
+  pix_copy_and_paste TEXT,
+  confirmed_date TEXT,
+  payment_date TEXT,
+  client_payment_date TEXT,
+  original_due_date TEXT,
+  received_in_cash INTEGER DEFAULT 0,
+  deleted INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS invoices (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  payment_id TEXT REFERENCES payments(id),
+  customer_id TEXT REFERENCES customers(id),
+  status TEXT DEFAULT 'SCHEDULED',
+  type TEXT DEFAULT 'NFS-e',
+  service_description TEXT,
+  observations TEXT,
+  value INTEGER NOT NULL,
+  deductions INTEGER DEFAULT 0,
+  effective_date TEXT,
+  external_reference TEXT,
+  iss_retained INTEGER DEFAULT 0,
+  municipal_service_id TEXT,
+  municipal_service_code TEXT,
+  municipal_service_name TEXT,
+  taxes TEXT,
+  number TEXT,
+  rpsSerie TEXT DEFAULT 'IO',
+  rpsNumber TEXT,
+  pdf_url TEXT,
+  xml_url TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS webhook_configs (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  name TEXT DEFAULT 'Webhook',
+  url TEXT NOT NULL,
+  email TEXT,
+  api_version INTEGER DEFAULT 3,
+  enabled INTEGER DEFAULT 1,
+  interrupted INTEGER DEFAULT 0,
+  auth_token TEXT,
+  send_type TEXT DEFAULT 'NON_REQUIRED',
+  events TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS webhook_log (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  webhook_config_id TEXT NOT NULL,
+  event TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  status_code INTEGER,
+  response_body TEXT,
+  success INTEGER DEFAULT 0,
+  sent_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS wallet_movements (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  type TEXT NOT NULL,
+  value INTEGER NOT NULL,
+  balance_after INTEGER NOT NULL,
+  description TEXT,
+  reference_type TEXT,
+  reference_id TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS transfers (
+  id TEXT PRIMARY KEY,
+  source_account_id TEXT NOT NULL REFERENCES accounts(id),
+  target_wallet_id TEXT,
+  target_account_id TEXT,
+  value INTEGER NOT NULL,
+  status TEXT DEFAULT 'DONE',
+  description TEXT,
+  operation_type TEXT DEFAULT 'INTERNAL',
+  created_at TEXT DEFAULT (datetime('now'))
+);

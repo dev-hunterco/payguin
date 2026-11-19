@@ -1,0 +1,25 @@
+{
+  "name": "payguin",
+  "version": "0.1.0",
+  "description": "PayGuin - Local fake payment gateway API for testing (Asaas-compatible)",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "node --test test/**/*.test.js"
+  },
+  "keywords": ["asaas", "mock", "fake", "payment", "gateway", "testing"],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.0",
+    "better-sqlite3": "^11.6.0",
+    "nanoid": "^5.0.9",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
