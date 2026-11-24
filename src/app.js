@@ -1,3 +1,6 @@
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import pino from 'pino';
@@ -47,6 +50,13 @@ export function createApp(db) {
 
   // Health check
   app.get('/health', (req, res) => res.json({ ok: true, service: 'payguin' }));
+
+  // LLMs.txt — public, no auth
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  app.get('/llms.txt', (req, res) => {
+    const content = readFileSync(join(__dirname, '..', 'llms.txt'), 'utf-8');
+    res.type('text/plain').send(content);
+  });
 
   // Root redirect
   app.get('/', (req, res) => res.redirect('/__admin'));

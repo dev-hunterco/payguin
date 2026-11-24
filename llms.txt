@@ -1,0 +1,156 @@
+# PayGuin
+
+> API mock local do Asaas para testes e desenvolvimento. Simula o gateway de pagamentos Asaas sem dependências externas.
+
+Base URL: http://localhost:8787
+
+## Começando: como obter um access_token
+
+A API exige o header `access_token` em todos os endpoints `/v3/*`. Tokens inválidos retornam 401.
+
+NÃO invente um token. Use a Admin API (pública, sem autenticação) para descobrir contas existentes ou criar uma nova:
+
+```bash
+# Listar contas existentes (retorna array com id, name, api_key de cada conta)
+curl http://localhost:8787/__admin/api/accounts
+
+# Se já existirem contas, use o campo "api_key" de uma delas como access_token.
+# Se não existir nenhuma conta, crie uma:
+curl -X POST http://localhost:8787/v2/accounts \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Minha Empresa", "cpfCnpj": "12345678000199"}'
+# A resposta inclui o campo "apiKey" — use esse valor.
+
+# Usar o token obtido:
+curl -H "access_token: <api_key da conta>" http://localhost:8787/v3/customers
+```
+
+## Admin API (pública, sem autenticação)
+
+Endpoints para inspecionar e gerenciar o estado do servidor. Nenhum exige `access_token`.
+
+### Contas
+- GET /__admin/api/accounts — Listar todas as contas (inclui id, name, api_key)
+- POST /__admin/api/accounts — Criar conta. Body: `{"name": "...", "cpfCnpj": "..."}`
+- DELETE /__admin/api/accounts/{id} — Remover todos os dados de uma conta
+- POST /__admin/api/accounts/{id}/balance — Adicionar saldo manual. Body: `{"value": 100.00, "description": "..."}`
+- GET /__admin/api/accounts/{id}/statement — Extrato da conta. Query: `?offset=0&limit=50`
+
+### Dados por conta
+- GET /__admin/api/accounts/{id}/customers — Listar clientes da conta
+- GET /__admin/api/accounts/{id}/payments — Listar cobranças da conta (inclui customerName e split com walletName)
+- GET /__admin/api/accounts/{id}/invoices — Listar notas fiscais da conta
+- GET /__admin/api/accounts/{id}/webhooks — Listar webhooks da conta
+- POST /__admin/api/accounts/{id}/webhooks — Criar webhook. Body: `{"url": "...", "events": [...]}`
+- PUT /__admin/api/webhooks/{id} — Atualizar webhook. Body inclui `accountId`
+- DELETE /__admin/api/webhooks/{id}?accountId={accountId} — Remover webhook
+
+### Logs
+- GET /__admin/api/webhook-log — Log global de dispatches. Query: `?accountId=` para filtrar por conta
+
+## API Asaas (exige access_token)
+
+Todos os endpoints abaixo exigem o header `access_token`.
+
+### Clientes
+- POST /v3/customers — Criar cliente. Body: `{"name": "...", "cpfCnpj": "..."}`
+- GET /v3/customers — Listar clientes. Query: `?cpfCnpj=` para buscar por documento
+- GET /v3/customers/{id} — Consultar cliente por ID
+- GET /v3/customerFiscalInfo — Configuração fiscal do cliente
+
+### Cobranças (Payments)
+- POST /v3/payments — Criar cobrança. Body: `{"customer": "cus_xxx", "billingType": "BOLETO|PIX|CREDIT_CARD", "value": 100.00, "dueDate": "2024-12-31"}`. Suporta `installmentCount` e `totalValue` para parcelamento.
+- GET /v3/payments — Listar cobranças. Query: `?status=`, `?billingType=`, `?customer=`, `?installment=`
+- GET /v3/payments/{id} — Consultar cobrança por ID
+- POST /v3/payments/{id} — Atualizar splits. Body: `{"split": [...]}`
+- POST /v3/payments/{id}/receiveInCash — Registrar recebimento em dinheiro
+
+### Notas Fiscais (Invoices)
+- POST /v3/invoices — Emitir nota fiscal. Body: `{"value": 100.00, ...}`
+- GET /v3/invoices — Listar notas fiscais. Query: `?status=`
+- GET /v3/invoices/{id} — Consultar nota fiscal por ID
+- GET /v3/invoices/municipalServices — Listar serviços municipais (LC 116/2003). Query: `?description=` para filtrar por texto
+
+### Fiscal
+- GET /v3/fiscalInfo/nbsCodes — Códigos NBS. Query: `?description=` para filtrar
+- GET /v3/fiscalInfo/operationIndicatorCodes — Indicadores de operação (E=Exportação, I=Importação, N=Nenhum)
+
+### Contas e Carteiras
+- POST /v2/accounts — Criar subconta (não exige access_token)
+- GET /v3/myAccount/commercialInfo — Informações comerciais da conta
+- GET /v3/wallets — Listar carteiras da conta
+- GET /v3/banks — Listar bancos disponíveis
+
+### Webhooks
+- POST /v3/webhooks — Registrar webhook. Body: `{"url": "https://...", "events": ["PAYMENT_RECEIVED"]}`
+- PUT /v3/webhooks/{id} — Atualizar webhook
+- GET /v3/webhooks — Listar webhooks registrados
+
+### Financeiro
+- POST /v3/transfers — Transferência entre contas. Body: `{"value": 50.00, ...}`
+- GET /v3/finance/getCurrentBalance — Consultar saldo atual
+
+## Simulação (endpoints exclusivos do PayGuin, sem autenticação)
+
+Estes endpoints NÃO existem no Asaas real. Servem para controlar o estado dos dados em testes. Não exigem access_token.
+
+- POST /__sim/payments/{id}/pay — Simula pagamento recebido (dispara webhook PAYMENT_RECEIVED)
+- POST /__sim/payments/{id}/confirm — Simula confirmação PIX/cartão (dispara PAYMENT_CONFIRMED)
+- POST /__sim/payments/{id}/overdue — Simula vencimento (dispara PAYMENT_OVERDUE)
+- POST /__sim/payments/{id}/refund — Simula estorno (dispara PAYMENT_REFUNDED)
+- POST /__sim/invoices/{id}/authorize — Autoriza nota fiscal (dispara INVOICE_AUTHORIZED)
+- POST /__sim/invoices/{id}/error — Simula erro na NF (dispara INVOICE_ERROR)
+- POST /__sim/time/advance — Avança tempo e vence boletos. Body: `{"days": 30}`
+- POST /__sim/reset — Reseta todo o banco de dados
+- POST /__sim/reset/{accountId} — Reseta dados de uma conta específica
+
+## Paginação
+
+Endpoints de listagem aceitam `?offset=0&limit=10`. A resposta segue o formato:
+
+```json
+{
+  "object": "list",
+  "hasMore": true,
+  "totalCount": 42,
+  "limit": 10,
+  "offset": 0,
+  "data": [...]
+}
+```
+
+## Webhooks
+
+Eventos disponíveis: PAYMENT_RECEIVED, PAYMENT_CONFIRMED, PAYMENT_OVERDUE, PAYMENT_REFUNDED, INVOICE_CREATED, INVOICE_AUTHORIZED, INVOICE_ERROR.
+
+Payload de exemplo:
+
+```json
+{
+  "event": "PAYMENT_RECEIVED",
+  "payment": {
+    "id": "pay_xxx",
+    "customer": "cus_xxx",
+    "value": 100.00,
+    "status": "RECEIVED",
+    "billingType": "BOLETO"
+  }
+}
+```
+
+## Fluxo típico de uso
+
+1. Consulte contas existentes: GET /__admin/api/accounts
+2. Use uma conta existente ou crie uma nova: POST /v2/accounts
+3. Com o access_token, crie um cliente: POST /v3/customers
+4. Crie uma cobrança: POST /v3/payments (referenciando o customer.id)
+5. Simule o pagamento: POST /__sim/payments/{id}/pay
+6. Consulte o status atualizado: GET /v3/payments/{id}
+7. (Opcional) Registre um webhook antes do passo 5 para receber callbacks
+
+## Notas
+
+- Banco de dados: SQLite local (arquivo em ./data/payguin.db)
+- Admin UI: http://localhost:8787/__admin — painel visual para inspecionar contas, clientes, cobranças e webhooks
+- Porta padrão: 8787 (configurável via variável de ambiente PORT)
+- Sem rate limiting, sem validação de CPF/CNPJ, sem processamento real de pagamentos

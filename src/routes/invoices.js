@@ -23,7 +23,7 @@ export function invoiceRoutes(invoiceService, webhookDispatcher) {
 
   // GET /v3/invoices/municipalServices
   router.get('/v3/invoices/municipalServices', (req, res) => {
-    const services = invoiceService.getMunicipalServices();
+    const services = invoiceService.getMunicipalServices(req.query.description);
     res.json({ object: 'list', data: services, totalCount: services.length });
   });
 
